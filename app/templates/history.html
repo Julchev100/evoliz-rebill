@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Historique des achats refacturés</h2>
+{% if not rows %}
+  <p>Aucun achat refacturé pour l'instant.</p>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th>Date refacturation</th>
+      <th>Buy ID</th>
+      <th>Invoice ID</th>
+      <th>N° facture</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r["rebilled_at"] }}</td>
+      <td>{{ r["buyid"] }}</td>
+      <td>{{ r["invoiceid"] }}</td>
+      <td>{{ r["invoice_number"] or '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

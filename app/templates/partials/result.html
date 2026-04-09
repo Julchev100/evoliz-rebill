@@ -1,0 +1,15 @@
+<h3>Résultats</h3>
+{% for r in results %}
+  {% if r.error %}
+    <div class="ko">
+      <strong>{{ r.client_name }}</strong> — échec : {{ r.error }}
+    </div>
+  {% else %}
+    <div class="ok">
+      <strong>{{ r.client_name }}</strong> — facture brouillon créée
+      {% if r.invoice_number %}<code>{{ r.invoice_number }}</code>{% endif %}
+      ({{ r.nb_buys }} ligne(s))
+    </div>
+  {% endif %}
+{% endfor %}
+<p><a href="/">↻ Recharger la liste</a></p>

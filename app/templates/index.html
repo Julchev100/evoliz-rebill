@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}
+  <div class="error"><strong>Erreur :</strong> {{ error }}</div>
+{% endif %}
+
+{% if not groups and not error %}
+  <p>Aucun achat refacturable en attente. ✓</p>
+{% endif %}
+
+{% if groups %}
+<form hx-post="/generate" hx-target="#result" hx-swap="innerHTML">
+  {% for g in groups %}
+    <div class="client-block">
+      <div class="client-head">
+        <h2>
+          <label>
+            <input type="checkbox"
+                   onclick="this.closest('.client-block').querySelectorAll('input[name=buy]').forEach(c => c.checked = this.checked)">
+            {{ g.client.name }} <small>({{ g.client.code }})</small>
+          </label>
+        </h2>
+        <span class="total">{{ g.buys|length }} achat(s) — {{ '%.2f'|format(g.total_ht) }} € HT</span>
+      </div>
+      <div style="font-size: 0.85rem; color: #555; margin-top: 0.4rem;">
+        {% if g.enrich_error %}
+          <em>⚠ Fiche client indisponible : {{ g.enrich_error }}</em>
+        {% elif g.details %}
+          {% if g.address_lines %}
+            <div>{{ g.address_lines | join(' · ') }}</div>
+          {% endif %}
+          <div>
+            {% if g.siret %}<strong>SIRET</strong> {{ g.siret }} &nbsp;{% endif %}
+            {% if g.vat_number %}<strong>TVA</strong> {{ g.vat_number }} &nbsp;{% endif %}
+            {% if g.phone %}<strong>Tél</strong> {{ g.phone }}{% endif %}
+          </div>
+        {% endif %}
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Date</th>
+            <th>Fournisseur</th>
+            <th>Libellé</th>
+            <th>Réf</th>
+            <th class="num">HT</th>
+            <th class="num">TVA</th>
+            <th class="num">TTC</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for b in g.buys %}
+          <tr>
+            <td><input type="checkbox" name="buy" value="{{ g.client.clientid }}:{{ b.buyid }}" checked></td>
+            <td>{{ b.documentdate }}</td>
+            <td>{{ b.supplier.name }}</td>
+            <td>{{ b.label }}</td>
+            <td>{{ b.external_document_number or '' }}</td>
+            <td class="num">{{ '%.2f'|format(b.total.vat_exclude) }}</td>
+            <td class="num">{{ '%.2f'|format(b.total.vat or 0) }}</td>
+            <td class="num">{{ '%.2f'|format(b.total.vat_include) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+
+  <div style="margin-top: 1rem; padding: 1rem; background: #f6f8fa; border-radius: 6px;">
+    <p style="margin-top:0;"><strong>Conditions de paiement</strong> (appliquées à toutes les factures générées) :</p>
+    <p>
+      <label>
+        Mode de paiement&nbsp;:
+        <select name="paytypeid" required>
+          {% for pt in paytypes %}
+            <option value="{{ pt.paytypeid }}" {% if pt.label == 'Virement bancaire' %}selected{% endif %}>{{ pt.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      &nbsp;&nbsp;
+      <label>
+        Délai de paiement&nbsp;:
+        <select name="paytermid" required>
+          {% for pt in payterms %}
+            <option value="{{ pt.paytermid }}" {% if pt.label == 'A réception' %}selected{% endif %}>{{ pt.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </p>
+    <p>
+      <label>
+        Classification de vente&nbsp;:
+        <select name="sale_classificationid" required>
+          {% for c in classifications %}
+            <option value="{{ c.classificationid }}" {% if c.code == 'FRAIS' %}selected{% endif %}>{{ c.label }} ({{ c.code }})</option>
+          {% endfor %}
+        </select>
+      </label>
+    </p>
+  </div>
+
+  <button type="submit" style="margin-top: 1rem;">Générer les factures brouillon</button>
+</form>
+
+<div id="result" style="margin-top:1.5rem;"></div>
+{% endif %}
+
+{% endblock %}

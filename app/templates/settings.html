@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Clés API Evoliz</h2>
+<p>
+  Renseignez vos clés API Evoliz. Elles sont stockées localement dans
+  <code>data/rebill.db</code> (SQLite, en clair) et utilisées pour
+  s'authentifier sur <code>https://www.evoliz.io/api/login</code>.
+</p>
+<p>
+  Vos clés se trouvent dans Evoliz : <em>Paramètres → API</em>.
+</p>
+
+{% if saved %}
+  <div class="ok">Clés enregistrées. <a href="/">→ Aller aux achats à refacturer</a></div>
+{% endif %}
+
+<form method="post" action="/settings" style="max-width: 560px;">
+  <p>
+    <label>
+      <strong>Clé publique</strong><br>
+      <input type="text" name="public_key" value="{{ pk }}" required
+             style="width:100%; padding:0.5rem; font-family:monospace;">
+    </label>
+  </p>
+  <p>
+    <label>
+      <strong>Clé secrète</strong><br>
+      <input type="password" name="secret_key"
+             {% if has_sk %}placeholder="{{ sk_masked }} (laisser vide pour conserver)"{% endif %}
+             style="width:100%; padding:0.5rem; font-family:monospace;">
+    </label>
+  </p>
+  <p>
+    <button type="submit">Enregistrer</button>
+  </p>
+</form>
+{% endblock %}
