@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     evoliz_login_url: str = "https://www.evoliz.io/api/login"
     db_path: str = "data/rebill.db"
 
+    # HTTP Basic Auth pour prot\u00e9ger l'app en ligne. Si app_password est vide,
+    # aucune protection (\u00e0 utiliser uniquement en local).
+    app_user: str = "admin"
+    app_password: Optional[str] = None
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

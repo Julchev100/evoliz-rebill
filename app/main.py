@@ -1,17 +1,19 @@
 from collections import defaultdict
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from . import db, service
+from .auth import require_auth
 from .evoliz import client as evoliz_client
 
 BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-app = FastAPI(title="evoliz-rebill")
+# Toutes les routes sont prot\u00e9g\u00e9es si APP_PASSWORD est d\u00e9fini
+app = FastAPI(title="evoliz-rebill", dependencies=[Depends(require_auth)])
 
 
 @app.on_event("startup")
