@@ -51,10 +51,15 @@ def set_setting(key: str, value: str) -> None:
 
 
 def get_credentials() -> tuple[Optional[str], Optional[str]]:
-    """Cl\u00e9s API : SQLite d'abord, puis .env en fallback."""
-    pk = get_setting("evoliz_public_key") or settings.evoliz_public_key
-    sk = get_setting("evoliz_secret_key") or settings.evoliz_secret_key
+    """Cl\u00e9s API : env vars en priorit\u00e9 (HF Spaces / prod), puis SQLite (local)."""
+    pk = settings.evoliz_public_key or get_setting("evoliz_public_key")
+    sk = settings.evoliz_secret_key or get_setting("evoliz_secret_key")
     return pk, sk
+
+
+def credentials_from_env() -> bool:
+    """True si les cl\u00e9s viennent de l'environnement (UI /settings inutile)."""
+    return bool(settings.evoliz_public_key and settings.evoliz_secret_key)
 
 
 def has_credentials() -> bool:

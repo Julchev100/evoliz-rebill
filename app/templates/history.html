@@ -1,25 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Historique des achats refacturés</h2>
-{% if not rows %}
-  <p>Aucun achat refacturé pour l'instant.</p>
+<h2>Historique des factures de refacturation</h2>
+<p style="color:#666; font-size:0.9rem;">
+  Détecté en lisant le marqueur <code>[BUYS:...]</code> dans le commentaire
+  des factures de vente Evoliz (12 derniers mois).
+</p>
+
+{% if error %}
+  <div class="error"><strong>Erreur :</strong> {{ error }}</div>
+{% endif %}
+
+{% if not rows and not error %}
+  <p>Aucune facture de refacturation détectée.</p>
 {% else %}
 <table>
   <thead>
     <tr>
-      <th>Date refacturation</th>
-      <th>Buy ID</th>
-      <th>Invoice ID</th>
+      <th>Date</th>
       <th>N° facture</th>
+      <th>Client</th>
+      <th class="num">HT</th>
+      <th>Achats refacturés</th>
     </tr>
   </thead>
   <tbody>
     {% for r in rows %}
     <tr>
-      <td>{{ r["rebilled_at"] }}</td>
-      <td>{{ r["buyid"] }}</td>
-      <td>{{ r["invoiceid"] }}</td>
-      <td>{{ r["invoice_number"] or '' }}</td>
+      <td>{{ r.documentdate }}</td>
+      <td>{{ r.document_number }}</td>
+      <td>{{ r.client_name }}</td>
+      <td class="num">{{ '%.2f'|format(r.total_ht) }}</td>
+      <td><small>{{ r.buyids | join(', ') }}</small></td>
     </tr>
     {% endfor %}
   </tbody>

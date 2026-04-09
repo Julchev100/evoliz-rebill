@@ -143,6 +143,22 @@ class EvolizClient:
             self._payterms = data.get("data", [])
         return self._payterms
 
+    async def get_recent_invoices(self, since_date: str) -> list[dict]:
+        """Liste les factures de vente cr\u00e9\u00e9es \u00e0 partir de `since_date` (YYYY-MM-DD)."""
+        out: list[dict] = []
+        page = 1
+        while True:
+            data = await self._request(
+                "GET", "/invoices",
+                params={"page": page, "per_page": 100, "created_after": since_date},
+            )
+            out.extend(data.get("data", []))
+            meta = data.get("meta") or {}
+            if page >= meta.get("last_page", 1):
+                break
+            page += 1
+        return out
+
     async def get_sale_classifications(self) -> list[dict]:
         """Classifications de vente (cach\u00e9es). On filtre les enabled."""
         if self._sale_classifications is None:

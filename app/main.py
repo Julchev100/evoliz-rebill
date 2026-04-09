@@ -57,13 +57,20 @@ async def index(request: Request):
 
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_form(request: Request, saved: bool = False):
+    from_env = db.credentials_from_env()
     pk = db.get_setting("evoliz_public_key") or ""
     sk = db.get_setting("evoliz_secret_key") or ""
     sk_masked = ("\u2022" * 8 + sk[-4:]) if sk else ""
     return templates.TemplateResponse(
         request,
         "settings.html",
-        {"pk": pk, "sk_masked": sk_masked, "has_sk": bool(sk), "saved": saved},
+        {
+            "pk": pk,
+            "sk_masked": sk_masked,
+            "has_sk": bool(sk),
+            "saved": saved,
+            "from_env": from_env,
+        },
     )
 
 
@@ -72,6 +79,9 @@ async def settings_save(
     public_key: str = Form(...),
     secret_key: str = Form(""),
 ):
+    if db.credentials_from_env():
+        # Cl\u00e9s g\u00e9r\u00e9es par variables d'env, /settings d\u00e9sactiv\u00e9
+        return RedirectResponse(url="/settings", status_code=303)
     pk = public_key.strip()
     sk = secret_key.strip()
     if pk:
@@ -109,7 +119,37 @@ async def generate(request: Request):
 
 @app.get("/history", response_class=HTMLResponse)
 async def history(request: Request):
-    rows = db.list_rebilled()
+    if not db.has_credentials():
+        return RedirectResponse(url="/settings", status_code=303)
+    import re
+    from datetime import date, timedelta
+    rows: list[dict] = []
+    error = None
+    try:
+        since = (date.today() - timedelta(days=service.LOOKBACK_MONTHS * 31)).isoformat()
+        invoices = await evoliz_client.get_recent_invoices(since)
+        for inv in invoices:
+            comment = inv.get("comment_clean") or inv.get("comment") or ""
+            buyids: list[int] = []
+            for m in service.REBILL_TAG_RE.finditer(comment):
+                for s in m.group(1).split(","):
+                    s = s.strip()
+                    if s.isdigit():
+                        buyids.append(int(s))
+            if not buyids:
+                continue
+            cli = inv.get("client") or {}
+            tot = inv.get("total") or {}
+            rows.append({
+                "documentdate": inv.get("documentdate", ""),
+                "document_number": inv.get("document_number", ""),
+                "client_name": cli.get("name", ""),
+                "total_ht": float(tot.get("vat_exclude") or 0),
+                "buyids": buyids,
+            })
+        rows.sort(key=lambda r: r["documentdate"], reverse=True)
+    except Exception as e:  # noqa: BLE001
+        error = str(e)
     return templates.TemplateResponse(
-        request, "history.html", {"rows": rows}
+        request, "history.html", {"rows": rows, "error": error}
     )

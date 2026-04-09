@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Clés API Evoliz</h2>
+
+{% if from_env %}
+  <div class="ok">
+    Les clés sont fournies par les variables d'environnement
+    (<code>EVOLIZ_PUBLIC_KEY</code> / <code>EVOLIZ_SECRET_KEY</code>).
+    Modification via cette page désactivée.
+  </div>
+  <p><a href="/">→ Aller aux achats à refacturer</a></p>
+{% else %}
 <p>
   Renseignez vos clés API Evoliz. Elles sont stockées localement dans
   <code>data/rebill.db</code> (SQLite, en clair) et utilisées pour
@@ -9,7 +18,9 @@
 <p>
   Vos clés se trouvent dans Evoliz : <em>Paramètres → API</em>.
 </p>
+{% endif %}
 
+{% if not from_env %}
 {% if saved %}
   <div class="ok">Clés enregistrées. <a href="/">→ Aller aux achats à refacturer</a></div>
 {% endif %}
@@ -34,4 +45,5 @@
     <button type="submit">Enregistrer</button>
   </p>
 </form>
+{% endif %}
 {% endblock %}

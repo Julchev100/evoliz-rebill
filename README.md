@@ -1,7 +1,21 @@
+---
+title: Evoliz Rebill
+emoji: 📑
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 8000
+pinned: false
+short_description: Refacturer les achats Evoliz marques billable
+---
+
 # evoliz-rebill
 
 Petit outil web local pour refacturer aux clients les factures d'achat
 marquées `billable=true` dans Evoliz.
+
+> Le frontmatter YAML ci-dessus est interprété par Hugging Face Spaces
+> et ignoré par GitHub.
 
 ## Installation
 
@@ -26,35 +40,52 @@ Ouvrir http://localhost:8000
    achat).
 6. Marque les achats traités en base locale.
 
-## Déploiement Fly.io (mono-tenant + Basic Auth)
+## Déploiement Hugging Face Spaces (gratuit, sans CB)
 
-L'app est mono-utilisateur : une instance Fly.io = un compte Evoliz.
-Protégée par HTTP Basic Auth dès qu'`APP_PASSWORD` est défini.
+1. **Crée la Space** : https://huggingface.co/new-space
+   - Owner : ton compte HF
+   - Space name : `evoliz-rebill`
+   - License : MIT (ou autre)
+   - SDK : **Docker**
+   - Visibility : Private (recommandé) ou Public
 
+2. **Pousse le code** vers le repo de la Space (HuggingFace fournit l'URL git) :
+   ```bash
+   git remote add hf https://huggingface.co/spaces/<TON_USER>/evoliz-rebill
+   git push hf main
+   ```
+   Ou via le bouton « Files » → « Upload files » dans l'UI HF.
+
+3. **Configure les secrets** dans Settings → Variables and secrets :
+   - `EVOLIZ_PUBLIC_KEY` (Secret)
+   - `EVOLIZ_SECRET_KEY` (Secret)
+   - `APP_PASSWORD` (Secret) — mot de passe d'accès au site
+   - `APP_USER` (Variable, optionnel, défaut `admin`)
+
+4. La Space rebuilds automatiquement. À l'ouverture de l'URL, le navigateur
+   te demandera user/mot de passe via HTTP Basic Auth.
+
+### Persistance et HF Spaces gratuit
+
+Le filesystem est éphémère sur le tier gratuit : la SQLite locale est
+**wipée à chaque redémarrage** de la Space. C'est pour ça que :
+
+- **Les clés API doivent venir des Secrets HF** (pas de `/settings` UI),
+  l'app le détecte automatiquement et désactive le formulaire.
+- **L'historique « déjà refacturé »** est reconstruit à chaque scan en
+  parsant les commentaires des factures de vente Evoliz : chaque facture
+  générée contient un marqueur `[BUYS:id1,id2,...]` qui sert de source
+  de vérité. Source = Evoliz, donc immune à un wipe HF.
+
+## Déploiement local (alternative)
+
+Pour un usage purement personnel sans cloud :
 ```bash
-# 1. installer flyctl : https://fly.io/docs/flyctl/install/
-# 2. se connecter (1 fois)
-fly auth login
-
-# 3. créer l'app (utilise fly.toml fourni). NE PAS déployer tout de suite.
-fly launch --no-deploy --copy-config
-
-# 4. créer le volume persistant (1 GB suffit)
-fly volumes create data --size 1 --region cdg
-
-# 5. définir le mot de passe d'accès (le user est "admin" par défaut)
-fly secrets set APP_PASSWORD='choisis-un-mot-de-passe-fort'
-# optionnel : changer le username
-# fly secrets set APP_USER='julien'
-
-# 6. déployer
-fly deploy
+python -m venv .venv && . .venv/Scripts/activate
+pip install -e .
+uvicorn app.main:app
 ```
-
-Tu obtiens une URL `https://evoliz-rebill.fly.dev` (ou similaire). Au 1er
-accès, le navigateur te demande user/mot de passe. Ensuite, va sur
-`/settings` pour saisir tes clés API Evoliz (stockées sur le volume
-persistant).
+Saisis tes clés via `/settings` (stockées en SQLite locale persistante).
 
 ## Limites
 

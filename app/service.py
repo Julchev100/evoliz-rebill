@@ -3,14 +3,22 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Optional
 
 from . import db
 from .evoliz import client
 from .models import Buy, Client
+
+# Marqueur ins\u00e9r\u00e9 dans le commentaire des factures g\u00e9n\u00e9r\u00e9es. Permet de
+# d\u00e9tecter quelles factures d'achat ont d\u00e9j\u00e0 \u00e9t\u00e9 refactur\u00e9es \u2014 source de
+# v\u00e9rit\u00e9 c\u00f4t\u00e9 Evoliz, donc immune \u00e0 un wipe du filesystem (HF Spaces).
+REBILL_TAG_RE = re.compile(r"\[BUYS:([\d,\s]+)\]")
+# Fen\u00eatre de scan des factures pour reconstruire l'historique
+LOOKBACK_MONTHS = 12
 
 
 @dataclass
@@ -79,14 +87,39 @@ async def _enrich(group: ClientGroup) -> None:
         group.enrich_error = str(e)
 
 
+async def fetch_rebilled_buyids() -> set[int]:
+    """R\u00e9cup\u00e8re l'ensemble des `buyid` d\u00e9j\u00e0 refactur\u00e9s en parsant les
+    commentaires des factures de vente r\u00e9centes (LOOKBACK_MONTHS).
+
+    Source de v\u00e9rit\u00e9 = Evoliz, pas SQLite \u2014 r\u00e9siste \u00e0 un reset du
+    filesystem.
+    """
+    since = (date.today() - timedelta(days=LOOKBACK_MONTHS * 31)).isoformat()
+    invoices = await client.get_recent_invoices(since)
+    out: set[int] = set()
+    for inv in invoices:
+        comment = inv.get("comment_clean") or inv.get("comment") or ""
+        for m in REBILL_TAG_RE.finditer(comment):
+            for s in m.group(1).split(","):
+                s = s.strip()
+                if s.isdigit():
+                    out.add(int(s))
+    # Belt-and-suspenders : union avec SQLite local si dispo (utile en local
+    # pour des achats marqu\u00e9s avant l'introduction des tags).
+    out.update(db.rebilled_set())
+    return out
+
+
 async def scan_pending() -> list[ClientGroup]:
     """Liste les achats refacturables non encore traités, groupés par client.
 
     Chaque groupe est enrichi en parall\u00e8le avec la fiche compl\u00e8te
     `/clients/{clientid}` (adresse, SIRET, etc.).
     """
-    buys = await client.get_billable_buys()
-    already = db.rebilled_set()
+    buys, already = await asyncio.gather(
+        client.get_billable_buys(),
+        fetch_rebilled_buyids(),
+    )
     groups: dict[int, ClientGroup] = {}
     for b in buys:
         if b.buyid in already or b.client is None:
@@ -128,11 +161,16 @@ def build_invoice_payload(
                 "sale_classificationid": sale_classificationid,
             }
         )
+    # Marqueur de tracabilit\u00e9 : permet de retrouver les buys d\u00e9j\u00e0 refactur\u00e9s
+    # en lisant les commentaires des invoices Evoliz (cf. fetch_rebilled_buyids)
+    buyids = ",".join(str(b.buyid) for b in buys)
     return {
         "clientid": client_obj.clientid,
         "documentdate": date.today().isoformat(),
         "object": "Refacturation de frais",
-        "comment": "Facture générée automatiquement par evoliz-rebill",
+        "comment": (
+            f"Facture g\u00e9n\u00e9r\u00e9e automatiquement par evoliz-rebill [BUYS:{buyids}]"
+        ),
         "term": {
             "paytypeid": paytypeid,
             "paytermid": paytermid,
