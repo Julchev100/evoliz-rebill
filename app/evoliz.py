@@ -144,15 +144,30 @@ class EvolizClient:
         return self._payterms
 
     async def get_recent_invoices(self, since_date: str) -> list[dict]:
-        """Liste les factures de vente cr\u00e9\u00e9es \u00e0 partir de `since_date` (YYYY-MM-DD)."""
+        """Liste les factures de vente, filtr\u00e9es c\u00f4t\u00e9 client par `since_date`.
+
+        Note : l'endpoint flat /invoices n'accepte pas de filtre `created_after`,
+        donc on pagine puis on filtre. La liste \u00e9tant typiquement tri\u00e9e par date
+        d\u00e9croissante, on s'arr\u00eate d\u00e8s qu'on tombe sur une page enti\u00e8rement
+        ant\u00e9rieure \u00e0 la date pour limiter les appels.
+        """
         out: list[dict] = []
         page = 1
         while True:
             data = await self._request(
                 "GET", "/invoices",
-                params={"page": page, "per_page": 100, "created_after": since_date},
+                params={"page": page, "per_page": 100},
             )
-            out.extend(data.get("data", []))
+            page_data = data.get("data", [])
+            kept = [
+                inv for inv in page_data
+                if (inv.get("documentdate") or "") >= since_date
+            ]
+            out.extend(kept)
+            # Si la page est non vide ET aucune invoice n'a pass\u00e9 le filtre, on
+            # est all\u00e9 trop loin dans le pass\u00e9 \u2014 on s'arr\u00eate.
+            if page_data and not kept:
+                break
             meta = data.get("meta") or {}
             if page >= meta.get("last_page", 1):
                 break
