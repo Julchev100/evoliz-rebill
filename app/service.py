@@ -191,6 +191,22 @@ async def generate_invoices(
     by_client = {g.client.clientid: g for g in groups}
     results: list[GenerationResult] = []
 
+    # Validation pr\u00e9alable : si un des IDs est 0/manquant, renvoie une erreur
+    # claire au lieu de laisser Evoliz r\u00e9pondre 400 avec un message cryptique.
+    if not (paytypeid and paytermid and sale_classificationid):
+        return [
+            GenerationResult(
+                client_name="(global)",
+                invoiceid=None,
+                invoice_number=None,
+                nb_buys=0,
+                error=(
+                    "Mode/d\u00e9lai de paiement ou classification manquant. "
+                    "Recharge la page (Ctrl+F5) et r\u00e9essaie."
+                ),
+            )
+        ]
+
     for clientid, buyids in selection.items():
         group = by_client.get(clientid)
         if not group:
