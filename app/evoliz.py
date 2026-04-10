@@ -68,9 +68,9 @@ class EvolizClient:
                 dt = datetime.fromisoformat(exp_iso.replace("Z", "+00:00"))
                 self._token_exp = dt.timestamp() - 60
             except Exception:
-                self._token_exp = time.time() + 3500
+                self._token_exp = time.time() + 1100
         else:
-            self._token_exp = time.time() + 3500
+            self._token_exp = time.time() + 1100
         return token
 
     async def _ensure_token(self) -> str:

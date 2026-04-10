@@ -156,8 +156,9 @@ def build_invoice_payload(
                 "designation": designation[:250],
                 "quantity": 1,
                 "unit": "U",
-                "unit_price_vat_exclude": round(b.total.vat_exclude, 2),
+                "unit_price": round(b.total.vat_exclude, 2),
                 "vat": b.vat_rate(),
+                "type": "article",
                 "sale_classificationid": sale_classificationid,
             }
         )
